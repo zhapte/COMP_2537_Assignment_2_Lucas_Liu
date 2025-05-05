@@ -1,14 +1,5 @@
 require('dotenv').config();
 
-console.log('--- ENV VARS ---');
-console.log('MONGODB_USER:',     process.env.MONGODB_USER);
-console.log('MONGODB_PASSWORD:', process.env.MONGODB_PASSWORD ? '[SET]' : '[MISSING]');
-console.log('MONGODB_HOST:',     process.env.MONGODB_HOST);
-console.log('MONGODB_DATABASE:', process.env.MONGODB_DATABASE);
-console.log('NODE_SESSION_SECRET:', process.env.NODE_SESSION_SECRET ? '[SET]' : '[MISSING]');
-console.log('PORT:',             process.env.PORT);
-console.log('----------------');
-
 const express = require('express');
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
