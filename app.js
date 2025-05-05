@@ -1,5 +1,14 @@
 require('dotenv').config();
 
+console.log('--- ENV VARS ---');
+console.log('MONGODB_USER:',     process.env.MONGODB_USER);
+console.log('MONGODB_PASSWORD:', process.env.MONGODB_PASSWORD ? '[SET]' : '[MISSING]');
+console.log('MONGODB_HOST:',     process.env.MONGODB_HOST);
+console.log('MONGODB_DATABASE:', process.env.MONGODB_DATABASE);
+console.log('NODE_SESSION_SECRET:', process.env.NODE_SESSION_SECRET ? '[SET]' : '[MISSING]');
+console.log('PORT:',             process.env.PORT);
+console.log('----------------');
+
 const express = require('express');
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
@@ -21,6 +30,7 @@ const app = express();
 const uri = `mongodb+srv://${encodeURIComponent(MONGODB_USER)}`
     + `:${encodeURIComponent(MONGODB_PASSWORD)}`
     + `@${MONGODB_HOST}/${MONGODB_DATABASE}`;
+
 
 const client = new MongoClient(uri, {
     useNewUrlParser: true,
@@ -81,9 +91,6 @@ const loginSchema = Joi.object({
 
             } catch (err) {
                 console.error('Signup error:', err);
-                const errorMessage = err.isJoi
-                    ? err.details[0].message
-                    : 'An error occurred creating your account.';
                 res.status(400).render('signup', { error: errorMessage, form: req.body });
             }
         });
@@ -100,7 +107,6 @@ const loginSchema = Joi.object({
                 req.session.destroy();
                 return res.redirect('/');
             }
-
 
             const images = [
                 '/photo1.jpg',
