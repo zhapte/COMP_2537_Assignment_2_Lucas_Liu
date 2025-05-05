@@ -34,9 +34,9 @@ const signupSchema = Joi.object({
 });
 
 const loginSchema = Joi.object({
-    email:    Joi.string().email().required(),
+    email: Joi.string().email().required(),
     password: Joi.string().required()
-  });
+});
 
 (async function startServer() {
     try {
@@ -117,50 +117,46 @@ const loginSchema = Joi.object({
 
         app.get('/logout', (req, res) => {
             req.session.destroy(err => {
-              if (err) {
-                console.error('Logout error:', err);
-                return res.redirect('/members');
-              }
-              res.redirect('/');
+                if (err) {
+                    console.error('Logout error:', err);
+                    return res.redirect('/members');
+                }
+                res.redirect('/');
             });
-          });
+        });
 
-          app.get('/login', (req, res) => {
+        app.get('/login', (req, res) => {
             res.render('login', { error: null, form: {} });
-          });
-          
-          // POST /login – process credentials
-          app.post('/login', async (req, res) => {
+        });
+
+        app.post('/login', async (req, res) => {
             try {
-              // Validate input
-              const { email, password } = await loginSchema.validateAsync(req.body);
-          
-              // Look up the user
-              const user = await usersCollection.findOne({ email });
-              if (!user) {
-                throw new Error('Invalid email or password.');
-              }
-          
-              // Compare password
-              const match = await bcrypt.compare(password, user.passwordHash);
-              if (!match) {
-                throw new Error('Invalid email or password.');
-              }
-          
-              // Success: create session & redirect
-              req.session.userId = user._id.toString();
-              res.redirect('/members');
-          
+                const { email, password } = await loginSchema.validateAsync(req.body);
+
+                const user = await usersCollection.findOne({ email });
+                if (!user) {
+                    throw new Error('Invalid email or password.');
+                }
+
+                const match = await bcrypt.compare(password, user.passwordHash);
+                if (!match) {
+                    throw new Error('Invalid email or password.');
+                }
+
+                // Success: create session & redirect
+                req.session.userId = user._id.toString();
+                res.redirect('/members');
+
             } catch (err) {
-              const errorMessage = err.isJoi
-                ? err.details[0].message
-                : 'Invalid email or password.';
-              res.status(400).render('login', {
-                error: errorMessage,
-                form: { email: req.body.email }
-              });
+                const errorMessage = err.isJoi
+                    ? err.details[0].message
+                    : 'Invalid email or password.';
+                res.status(400).render('login', {
+                    error: errorMessage,
+                    form: { email: req.body.email }
+                });
             }
-          });
+        });
 
         app.use((req, res) => {
             res.status(404).render('404');
