@@ -96,7 +96,11 @@ const loginSchema = Joi.object({
         });
 
         function adminMiddleware(req, res, next) {
-            if (!req.session.authenticated || req.session.user_type !== 'admin') {
+            if (!req.session.authenticated) {
+                return res.redirect('/login');
+            }
+
+            if (req.session.user_type !== 'admin') {
                 return res.status(403).render('403', {
                     title: 'Forbidden',
                     error: 'You are not authorized to access this page.',
@@ -104,6 +108,7 @@ const loginSchema = Joi.object({
                     user_type: req.session.user_type
                 });
             }
+
             next();
         }
 
