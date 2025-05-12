@@ -60,40 +60,21 @@ const loginSchema = Joi.object({
         app.set('view engine', 'ejs');
         app.set('views', './views');
 
-
         app.get('/', (req, res) => {
-            if (req.session.userId) {
-                return res.redirect('/members');
-            }
-            res.render('index');
-        });
-
-        app.get('/signup', (req, res) => {
-            res.render('signup', { error: null, form: {} });
-        });
-
-        app.post('/signup', async (req, res) => {
-            try {
-                const { name, email, password } = await signupSchema.validateAsync(req.body);
-                const passwordHash = await bcrypt.hash(password, 10);
-                const result = await usersCollection.insertOne({ name, email, passwordHash });
-                req.session.userId = result.insertedId.toString();
-                res.redirect('/members');
-
-            } catch (err) {
-                console.error('Signup error:', err);
-                res.status(400).render('signup', { error: errorMessage, form: req.body });
-            }
+            res.render('index', {
+                title: 'Home',
+                authenticated: req.session.authenticated,
+                user_type: req.session.user_type
+            });
         });
 
         app.get('/members', async (req, res) => {
-            if (!req.session.userId) {
+            if (!req.session.authenticated) {
                 return res.redirect('/');
             }
 
-            const user = await usersCollection.findOne({
-                _id: new ObjectId(req.session.userId)
-            });
+            const user = await usersCollection.findOne({ _id: new ObjectId(req.session.userId) });
+
             if (!user) {
                 req.session.destroy();
                 return res.redirect('/');
@@ -104,26 +85,105 @@ const loginSchema = Joi.object({
                 '/photo2.webp',
                 '/photo3.webp'
             ];
-            const imagePath = images[Math.floor(Math.random() * images.length)];
 
             res.render('members', {
+                title: 'Members Area',
                 name: user.name,
-                imagePath
+                images,
+                authenticated: true,
+                user_type: user.user_type
             });
         });
 
-        app.get('/logout', (req, res) => {
-            req.session.destroy(err => {
-                if (err) {
-                    console.error('Logout error:', err);
-                    return res.redirect('/members');
-                }
-                res.redirect('/');
+        function adminMiddleware(req, res, next) {
+            if (!req.session.authenticated || req.session.user_type !== 'admin') {
+                return res.status(403).render('403', {
+                    title: 'Forbidden',
+                    error: 'You are not authorized to access this page.',
+                    authenticated: req.session.authenticated,
+                    user_type: req.session.user_type
+                });
+            }
+            next();
+        }
+
+        app.use('/admin', adminMiddleware);
+
+        app.get('/admin', async (req, res) => {
+            const users = await usersCollection.find().toArray();
+            res.render('admin', {
+                title: 'Admin Panel',
+                users,
+                authenticated: true,
+                user_type: req.session.user_type
             });
+        });
+
+        app.get('/admin/promote/:id', async (req, res) => {
+            await usersCollection.updateOne(
+                { _id: new ObjectId(req.params.id) },
+                { $set: { user_type: 'admin' } }
+            );
+            res.redirect('/admin');
+        });
+
+        app.get('/admin/demote/:id', async (req, res) => {
+            await usersCollection.updateOne(
+                { _id: new ObjectId(req.params.id) },
+                { $set: { user_type: 'user' } }
+            );
+            res.redirect('/admin');
+        });
+
+        app.get('/signup', (req, res) => {
+            res.render('signup', {
+                title: 'Sign Up',
+                error: null,
+                form: {},
+                authenticated: req.session.authenticated,
+                user_type: req.session.user_type
+            });
+        });
+
+        app.post('/signup', async (req, res) => {
+            try {
+                const { name, email, password } = await signupSchema.validateAsync(req.body);
+                const passwordHash = await bcrypt.hash(password, 10);
+
+                const result = await usersCollection.insertOne({
+                    name,
+                    email,
+                    passwordHash,
+                    user_type: 'user'
+                });
+
+                req.session.userId = result.insertedId.toString();
+                req.session.authenticated = true;
+                req.session.name = name;
+                req.session.user_type = 'user';
+
+                res.redirect('/members');
+
+            } catch (err) {
+                const errorMessage = err.details?.[0]?.message || 'Signup failed.';
+                res.status(400).render('signup', {
+                    title: 'Sign Up',
+                    error: errorMessage,
+                    form: req.body,
+                    authenticated: req.session.authenticated,
+                    user_type: req.session.user_type
+                });
+            }
         });
 
         app.get('/login', (req, res) => {
-            res.render('login', { error: null, form: {} });
+            res.render('login', {
+                title: 'Log In',
+                error: null,
+                form: {},
+                authenticated: req.session.authenticated,
+                user_type: req.session.user_type
+            });
         });
 
         app.post('/login', async (req, res) => {
@@ -131,32 +191,45 @@ const loginSchema = Joi.object({
                 const { email, password } = await loginSchema.validateAsync(req.body);
 
                 const user = await usersCollection.findOne({ email });
-                if (!user) {
-                    throw new Error('Invalid email or password.');
+
+                if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+                    throw new Error(); // generic to avoid leaking details
                 }
 
-                const match = await bcrypt.compare(password, user.passwordHash);
-                if (!match) {
-                    throw new Error('Invalid email or password.');
-                }
-
-                // Success: create session & redirect
                 req.session.userId = user._id.toString();
+                req.session.authenticated = true;
+                req.session.name = user.name;
+                req.session.user_type = user.user_type;
+
                 res.redirect('/members');
 
             } catch (err) {
                 const errorMessage = err.isJoi
                     ? err.details[0].message
                     : 'Invalid email or password.';
+
                 res.status(400).render('login', {
+                    title: 'Log In',
                     error: errorMessage,
-                    form: { email: req.body.email }
+                    form: { email: req.body.email },
+                    authenticated: req.session.authenticated,
+                    user_type: req.session.user_type
                 });
             }
         });
 
+        app.get('/logout', (req, res) => {
+            req.session.destroy(() => {
+                res.redirect('/');
+            });
+        });
+
         app.use((req, res) => {
-            res.status(404).render('404');
+            res.status(404).render('404', {
+                title: 'Page Not Found',
+                authenticated: req.session.authenticated,
+                user_type: req.session.user_type
+            });
         });
 
         app.listen(PORT, () => {

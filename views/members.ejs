@@ -1,22 +1,12 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Members Area</title>
-</head>
-<body>
-  <header>
-    <h1>Welcome, <%= name %>!</h1>
-  </header>
+<%- include('components/header') %>
+<h2>Welcome, <%= name %>!</h2>
+<p>Here’s a special image for you:</p>
+<div class="row mt-4">
+  <% images.forEach(image => { %>
+    <div class="col-md-4 mb-3">
+      <img src="<%= image %>" class="img-fluid rounded shadow-sm" alt="Member Image">
+    </div>
+  <% }) %>
+</div>
 
-  <main>
-    <p>Here’s a special image for you:</p>
-    <img src="<%= imagePath %>" alt="Member Image" />
-  </main>
-
-  <footer>
-    <a href="/logout">Log Out</a>
-  </footer>
-</body>
-</html>
+<%- include('components/footer') %>

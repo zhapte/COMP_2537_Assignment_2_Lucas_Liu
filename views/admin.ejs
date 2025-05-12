@@ -1,0 +1,21 @@
+<%- include('components/header') %>
+
+<h2>Admin Dashboard</h2>
+
+<table class="table mt-4">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Email</th>
+      <th>User Type</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% users.forEach(user => { %>
+      <%- include('components/user', { user }) %>
+    <% }) %>
+  </tbody>
+</table>
+
+<%- include('components/footer') %>
